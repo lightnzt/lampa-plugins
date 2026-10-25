@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Проверка сайтов</title>
+<meta name="robots" content="noindex">
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--text:#14171c;--muted:#5d6672;--line:#e3e6ea;--ok:#1f9d55;--bad:#d64545;--slow:#c98a00;--accent:#2f6fde;--chip:#eef1f5}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#171b21;--text:#e8ebef;--muted:#98a2ae;--line:#262c34;--ok:#3ccf7a;--bad:#ff6b6b;--slow:#f0b429;--accent:#6aa0ff;--chip:#20262e}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.45 -apple-system,system-ui,"Segoe UI",Roboto,sans-serif;-webkit-text-size-adjust:100%}
+main{max-width:720px;margin:0 auto;padding:16px 16px 48px}
+h1{font-size:22px;margin:4px 0 4px}
+.sub{color:var(--muted);font-size:14px;margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 14px;margin:0 0 12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:999px;padding:8px 14px;font-size:15px}
+.chip[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#fff}
+input[type=text]{flex:1;min-width:0;border:1px solid var(--line);background:var(--bg);color:var(--text);border-radius:10px;padding:9px 12px;font-size:15px}
+button.main{width:100%;border:0;border-radius:12px;padding:14px;font-size:17px;font-weight:600;background:var(--accent);color:#fff}
+button.main:disabled{opacity:.5}
+button.sec{border:1px solid var(--line);background:var(--chip);color:var(--text);border-radius:12px;padding:12px 14px;font-size:15px;flex:1}
+.exit{font-size:15px}
+.exit b{font-weight:600}
+.bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin:10px 0 6px}
+.bar>i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.stat{background:var(--chip);border-radius:10px;padding:8px 10px}
+.stat .n{font-size:20px;font-weight:700}
+.stat .l{font-size:12px;color:var(--muted)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}.slow{color:var(--slow)}
+details{border-top:1px solid var(--line);padding:10px 0}
+details:first-of-type{border-top:0}
+summary{cursor:pointer;display:flex;justify-content:space-between;gap:10px;list-style:none}
+summary::-webkit-details-marker{display:none}
+summary .name{font-weight:600}
+summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
+.hosts{margin:8px 0 0;font-size:14px;color:var(--muted);word-break:break-all}
+.hosts span{display:inline-block;margin:0 10px 4px 0}
+.note{font-size:13px;color:var(--muted)}
+.hidden{display:none}
+</style>
+</head>
+<body>
+<main>
+  <h1>Проверка сайтов</h1>
+  <p class="sub">Открывает около 3000 популярных сайтов и смотрит, есть ли соединение. Ничего не скачивает, только спрашивает «ты тут?».</p>
+
+  <div class="card">
+    <div class="exit" id="exit">Выход в интернет: определяю…</div>
+  </div>
+
+  <div class="card" id="setup">
+    <div style="margin-bottom:8px">Где сейчас проверяем?</div>
+    <div class="row" id="labels">
+      <button class="chip" data-v="Дом Light">Дом (Light)</button>
+      <button class="chip" data-v="Норк">Норк</button>
+      <button class="chip" data-v="Мегафон без ВПН">Мегафон без ВПН</button>
+      <button class="chip" data-v="Другое">Другое</button>
+    </div>
+    <div class="row" style="margin-top:10px"><input type="text" id="note" placeholder="Комментарий (необязательно)"></div>
+    <p class="note">Для проверки домашнего ВПН выключи ВПН на телефоне и подключись к Wi-Fi Light. Экран лучше не гасить, займёт минут 5–10.</p>
+    <button class="main" id="start" disabled>Начать проверку</button>
+  </div>
+
+  <div class="card hidden" id="progress">
+    <div class="row" style="justify-content:space-between"><span id="phase">Проверяю…</span><span id="count"></span></div>
+    <div class="bar"><i id="barfill"></i></div>
+    <div class="stats">
+      <div class="stat"><div class="n ok" id="nok">0</div><div class="l">открылись</div></div>
+      <div class="stat"><div class="n bad" id="nerr">0</div><div class="l">ошибка сразу</div></div>
+      <div class="stat"><div class="n slow" id="nto">0</div><div class="l">нет ответа 12 с</div></div>
+    </div>
+  </div>
+
+  <div class="card hidden" id="send">
+    <div style="margin-bottom:10px;font-weight:600">Готово. Отправь результат Клоду:</div>
+    <div class="row">
+      <button class="sec" id="share">Отправить в Телегу</button>
+      <a class="sec" id="dl" style="text-align:center;text-decoration:none;color:var(--text)" download>Скачать файл</a>
+    </div>
+    <p class="note">«Отправить» открывает меню «Поделиться»: выбери Телеграм и бота Claude Code.</p>
+  </div>
+
+  <div class="card hidden" id="results"></div>
+</main>
+<script>
+(function(){
+  'use strict';
+  var CONC = 24, TIMEOUT = 12000;
+  var sites = [], label = '', exitInfo = null, res = {}, t0 = 0, wake = null;
+  var $ = function(id){ return document.getElementById(id); };
+
+  fetch('sites.json', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(s){
+    sites = s; updateStart();
+  }).catch(function(){ $('exit').textContent = 'Не загрузился список сайтов, обнови страницу.'; });
+
+  function detectExit(){
+    fetch('https://ipinfo.io/json', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(j){
+      exitInfo = {ip:j.ip, country:j.country, city:j.city, org:j.org};
+      $('exit').innerHTML = 'Выход в интернет: <b>' + esc(j.country || '?') + '</b>, ' + esc(j.city || '') + ' — ' + esc(j.org || '') + '<br><span class="note">' + esc(j.ip || '') + '</span>';
+    }).catch(function(){
+      exitInfo = {error:'ipinfo недоступен'};
+      $('exit').textContent = 'Выход в интернет: не удалось определить (ipinfo.io не ответил).';
+    });
+  }
+  detectExit();
+
+  function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+
+  $('labels').addEventListener('click', function(e){
+    var b = e.target.closest('.chip'); if (!b) return;
+    [].forEach.call(document.querySelectorAll('#labels .chip'), function(x){ x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+    label = b.getAttribute('data-v'); updateStart();
+  });
+  function updateStart(){ $('start').disabled = !(sites.length && label); }
+
+  function check(host){
+    var ctl = new AbortController(), st = performance.now();
+    var timer = setTimeout(function(){ ctl.abort(); }, TIMEOUT);
+    return fetch('https://' + host + '/', {method:'HEAD', mode:'no-cors', cache:'no-store', credentials:'omit',
+      redirect:'follow', referrerPolicy:'no-referrer', signal:ctl.signal})
+      .then(function(){ return [1, Math.round(performance.now() - st)]; },
+            function(){ return [ctl.signal.aborted ? 2 : 0, Math.round(performance.now() - st)]; })
+      .then(function(r){ clearTimeout(timer); return r; });
+  }
+
+  function runPool(list, onDone){
+    var i = 0, active = 0, done = 0;
+    return new Promise(function(resolve){
+      function next(){
+        while (active < CONC && i < list.length){
+          (function(host){
+            active++;
+            check(host).then(function(r){ active--; done++; onDone(host, r, done); next(); });
+          })(list[i++]);
+        }
+        if (active === 0 && i >= list.length) resolve();
+      }
+      next();
+    });
+  }
+
+  function counts(){
+    var c = [0,0,0];
+    for (var k in res) c[res[k][0]]++;
+    return c;
+  }
+  function paint(done, total){
+    var c = counts();
+    $('nok').textContent = c[1]; $('nerr').textContent = c[0]; $('nto').textContent = c[2];
+    $('count').textContent = done + ' / ' + total;
+    $('barfill').style.width = (100 * done / total).toFixed(1) + '%';
+  }
+
+  $('start').addEventListener('click', function(){
+    $('start').disabled = true; $('setup').classList.add('hidden'); $('progress').classList.remove('hidden');
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(function(w){ wake = w; }).catch(function(){}); } catch(e){}
+    res = {}; t0 = Date.now();
+    var hosts = sites.map(function(s){ return s.d; });
+    $('phase').textContent = 'Проверяю…';
+    runPool(hosts, function(h, r, d){ res[h] = r; if (d % 8 === 0 || d === hosts.length) paint(d, hosts.length); })
+    .then(function(){
+      var failed = hosts.filter(function(h){ return res[h][0] !== 1; });
+      if (!failed.length) return;
+      $('phase').textContent = 'Перепроверяю неудачные (' + failed.length + ')…';
+      return runPool(failed, function(h, r, d){
+        res[h] = [r[0], r[1], res[h][0]]; // [итог, мс, результат первой попытки]
+        if (d % 4 === 0 || d === failed.length) paint(d, failed.length);
+      });
+    })
+    .then(finish);
+  });
+
+  function finish(){
+    if (wake) { try { wake.release(); } catch(e){} }
+    var c = counts();
+    $('phase').textContent = 'Готово за ' + String(Math.round((Date.now() - t0) / 60000 * 10) / 10).replace('.', ',') + ' мин';
+    $('count').textContent = c[1] + ' из ' + sites.length + ' открылись';
+    $('barfill').style.width = '100%';
+    var out = {v:1, label:label, note:$('note').value, exit:exitInfo, ua:navigator.userAgent, start:new Date(t0).toISOString(),
+      dur_s:Math.round((Date.now() - t0) / 1000), conc:CONC, timeout_ms:TIMEOUT, r:res};
+    var blob = new Blob([JSON.stringify(out)], {type:'application/json'});
+    var name = 'netcheck-' + label.replace(/\s+/g, '-') + '-' + new Date(t0).toISOString().slice(0,16).replace(/[:T]/g, '-') + '.json';
+    var file = new File([blob], name, {type:'application/json'});
+    $('dl').href = URL.createObjectURL(blob); $('dl').setAttribute('download', name);
+    $('send').classList.remove('hidden');
+    $('share').addEventListener('click', function(){
+      if (navigator.canShare && navigator.canShare({files:[file]})) {
+        navigator.share({files:[file], title:'Проверка сайтов: ' + label}).catch(function(){});
+      } else { $('dl').click(); }
+    });
+    renderResults();
+  }
+
+  function renderResults(){
+    var groups = {}, order = [];
+    sites.forEach(function(s){
+      var g = s.g ? 'Топ: ' + s.g : s.c;
+      if (!groups[g]) { groups[g] = {ok:0, all:0, bad:[]}; order.push(g); }
+      var r = res[s.d] || [0];
+      groups[g].all++;
+      if (r[0] === 1) groups[g].ok++; else groups[g].bad.push(s.d + (r[0] === 2 ? ' ⏱' : ''));
+    });
+    order.sort(function(a, b){ return groups[a].ok / groups[a].all - groups[b].ok / groups[b].all; });
+    var html = '<div style="font-weight:600;margin-bottom:4px">По категориям и странам</div><p class="note" style="margin:0 0 6px">⏱ = не ответил за 12 с, без значка = ошибка сразу. Сверху самые проблемные.</p>';
+    order.forEach(function(g){
+      var x = groups[g], pct = Math.round(100 * x.ok / x.all);
+      var cls = pct >= 95 ? 'ok' : pct >= 85 ? 'slow' : 'bad';
+      html += '<details><summary><span class="name">' + esc(g) + '</span><span class="val ' + cls + '">' + x.ok + '/' + x.all + ' · ' + pct + '%</span></summary>' +
+        (x.bad.length ? '<div class="hosts">' + x.bad.map(function(h){ return '<span>' + esc(h) + '</span>'; }).join('') + '</div>' : '<div class="hosts">Всё открылось</div>') + '</details>';
+    });
+    $('results').innerHTML = html; $('results').classList.remove('hidden');
+  }
+})();
+</script>
+</body>
+</html>
