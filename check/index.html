@@ -116,14 +116,23 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
   });
   function updateStart(){ $('start').disabled = !(sites.length && label); }
 
-  function check(host){
+  function probe(url, method){
     var ctl = new AbortController(), st = performance.now();
     var timer = setTimeout(function(){ ctl.abort(); }, TIMEOUT);
-    return fetch('https://' + host + '/', {method:'HEAD', mode:'no-cors', cache:'no-store', credentials:'omit',
+    return fetch(url, {method:method, mode:'no-cors', cache:'no-store', credentials:'omit',
       redirect:'follow', referrerPolicy:'no-referrer', signal:ctl.signal})
       .then(function(){ return [1, Math.round(performance.now() - st)]; },
             function(){ return [ctl.signal.aborted ? 2 : 0, Math.round(performance.now() - st)]; })
       .then(function(r){ clearTimeout(timer); return r; });
+  }
+  // 1 = открылся, 3 = открылась иконка (главная прячет ответ от чужих страниц), 0 = ошибка сразу, 2 = нет ответа
+  function check(host){
+    return probe('https://' + host + '/', 'HEAD').then(function(r){
+      if (r[0] !== 0) return r;
+      return probe('https://' + host + '/favicon.ico', 'GET').then(function(f){
+        return f[0] === 1 ? [3, r[1] + f[1]] : [0, r[1]];
+      });
+    });
   }
 
   function runPool(list, onDone){
@@ -144,7 +153,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
 
   function counts(){
     var c = [0,0,0];
-    for (var k in res) c[res[k][0]]++;
+    for (var k in res) c[res[k][0] === 3 ? 1 : res[k][0]]++;
     return c;
   }
   function paint(done, total){
@@ -162,7 +171,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
     $('phase').textContent = 'Проверяю…';
     runPool(hosts, function(h, r, d){ res[h] = r; if (d % 8 === 0 || d === hosts.length) paint(d, hosts.length); })
     .then(function(){
-      var failed = hosts.filter(function(h){ return res[h][0] !== 1; });
+      var failed = hosts.filter(function(h){ return res[h][0] === 0 || res[h][0] === 2; });
       if (!failed.length) return;
       $('phase').textContent = 'Перепроверяю неудачные (' + failed.length + ')…';
       return runPool(failed, function(h, r, d){
@@ -179,7 +188,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
     $('phase').textContent = 'Готово за ' + String(Math.round((Date.now() - t0) / 60000 * 10) / 10).replace('.', ',') + ' мин';
     $('count').textContent = c[1] + ' из ' + sites.length + ' открылись';
     $('barfill').style.width = '100%';
-    var out = {v:1, label:label, note:$('note').value, exit:exitInfo, ua:navigator.userAgent, start:new Date(t0).toISOString(),
+    var out = {v:2, label:label, note:$('note').value, exit:exitInfo, ua:navigator.userAgent, start:new Date(t0).toISOString(),
       dur_s:Math.round((Date.now() - t0) / 1000), conc:CONC, timeout_ms:TIMEOUT, r:res};
     var blob = new Blob([JSON.stringify(out)], {type:'application/json'});
     var name = 'netcheck-' + label.replace(/\s+/g, '-') + '-' + new Date(t0).toISOString().slice(0,16).replace(/[:T]/g, '-') + '.json';
@@ -201,7 +210,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
       if (!groups[g]) { groups[g] = {ok:0, all:0, bad:[]}; order.push(g); }
       var r = res[s.d] || [0];
       groups[g].all++;
-      if (r[0] === 1) groups[g].ok++; else groups[g].bad.push(s.d + (r[0] === 2 ? ' ⏱' : ''));
+      if (r[0] === 1 || r[0] === 3) groups[g].ok++; else groups[g].bad.push(s.d + (r[0] === 2 ? ' ⏱' : ''));
     });
     order.sort(function(a, b){ return groups[a].ok / groups[a].all - groups[b].ok / groups[b].all; });
     var html = '<div style="font-weight:600;margin-bottom:4px">По категориям и странам</div><p class="note" style="margin:0 0 6px">⏱ = не ответил за 12 с, без значка = ошибка сразу. Сверху самые проблемные.</p>';
