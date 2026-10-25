@@ -45,7 +45,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
 <body>
 <main>
   <h1>Проверка сайтов</h1>
-  <p class="sub">Открывает около 3000 популярных сайтов и смотрит, есть ли соединение. Ничего не скачивает, только спрашивает «ты тут?».</p>
+  <p class="sub" id="sub">Открывает около 3000 популярных сайтов и смотрит, есть ли соединение. Ничего не скачивает, только спрашивает «ты тут?».</p>
 
   <div class="card">
     <div class="exit" id="exit">Выход в интернет: определяю…</div>
@@ -88,12 +88,15 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
 <script>
 (function(){
   'use strict';
-  var CONC = 24, TIMEOUT = 12000;
+  var Q = new URLSearchParams(location.search);
+  var LIST = (Q.get('list') || 'sites.json').replace(/[^a-z0-9._-]/gi, '');
+  var CONC = Math.max(1, Math.min(48, parseInt(Q.get('c'), 10) || 24)), TIMEOUT = 12000;
   var sites = [], label = '', exitInfo = null, res = {}, t0 = 0, wake = null;
   var $ = function(id){ return document.getElementById(id); };
 
-  fetch('sites.json', {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(s){
+  fetch(LIST, {cache:'no-store'}).then(function(r){ return r.json(); }).then(function(s){
     sites = s; updateStart();
+    if (LIST !== 'sites.json') $('sub').textContent = 'Перепроверка: ' + s.length + ' сайтов, по ' + CONC + ' одновременно.';
   }).catch(function(){ $('exit').textContent = 'Не загрузился список сайтов, обнови страницу.'; });
 
   function detectExit(){
@@ -188,7 +191,7 @@ summary .val{white-space:nowrap;font-variant-numeric:tabular-nums}
     $('phase').textContent = 'Готово за ' + String(Math.round((Date.now() - t0) / 60000 * 10) / 10).replace('.', ',') + ' мин';
     $('count').textContent = c[1] + ' из ' + sites.length + ' открылись';
     $('barfill').style.width = '100%';
-    var out = {v:2, label:label, note:$('note').value, exit:exitInfo, ua:navigator.userAgent, start:new Date(t0).toISOString(),
+    var out = {v:3, list:LIST, label:label, note:$('note').value, exit:exitInfo, ua:navigator.userAgent, start:new Date(t0).toISOString(),
       dur_s:Math.round((Date.now() - t0) / 1000), conc:CONC, timeout_ms:TIMEOUT, r:res};
     var blob = new Blob([JSON.stringify(out)], {type:'application/json'});
     var name = 'netcheck-' + label.replace(/\s+/g, '-') + '-' + new Date(t0).toISOString().slice(0,16).replace(/[:T]/g, '-') + '.json';
