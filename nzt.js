@@ -112,6 +112,13 @@
     }, tryAll, true);
   }
 
+  // Release names come from torrent trackers: escape them, Lampa puts Select items into HTML.
+  function esc(v) {
+    return String(v).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   function rdItems(streams) {
     var good = [], bad = [];
     streams.forEach(function (s) {
@@ -119,16 +126,16 @@
       var meta = '', text = [];
       lines.forEach(function (l) { if (l.indexOf('💾') !== -1) meta = l; else if (l) text.push(l); });
       var all = text.join(' ');
-      if (!s.url || BAD_FILE.test(all)) return;
+      if (!/^https:\/\/torrentio\.strem\.fun\//.test(s.url || '') || BAD_FILE.test(all)) return;
       var size = (meta.match(/💾\s*([\d.,]+\s*[GMK]B)/) || [])[1] || '';
       var tracker = (meta.match(/⚙️\s*([^\/]+)/) || [])[1] || '';
       var seeds = (meta.match(/👤\s*(\d+)/) || [])[1] || '';
       var quality = (s.name || '').replace(/\[RD\+?\]/, '').replace(/Torrentio/i, '').replace(/\s+/g, ' ').trim();
       var warn = BAD_AUDIO.test(all);
       var item = {
-        title: (warn ? '⚠ ' : '') + [quality, size].filter(Boolean).join(' · '),
-        subtitle: [text[0] || '', text[1] ? '(' + text[1] + ')' : '', tracker.trim(), seeds ? '👤 ' + seeds : '',
-          warn ? '— звук DTS/TrueHD, на ТВ может не пойти' : ''].filter(Boolean).join(' '),
+        title: esc((warn ? '⚠ ' : '') + [quality, size].filter(Boolean).join(' · ')),
+        subtitle: esc([text[0] || '', text[1] ? '(' + text[1] + ')' : '', tracker.trim(), seeds ? '👤 ' + seeds : '',
+          warn ? '— звук DTS/TrueHD, на ТВ может не пойти' : ''].filter(Boolean).join(' ')),
         url: s.url
       };
       (warn ? bad : good).push(item);
