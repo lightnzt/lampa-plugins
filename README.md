@@ -12,12 +12,6 @@ Small fixes for [Lampa](https://lampa.mx).
   30 episodes whole; longer ones are split as before.
 - **Key 5 → sources.** In the online episode list, key 5 on the remote opens the source (balancer) list,
   press 5 again to close it. Not active inside the player.
-- **Real-Debrid source.** A "Real-Debrid" button in the movie/series card: Russian releases from RuTracker and
-  Rutor via [Torrentio](https://torrentio.strem.fun), only those already cached on Real-Debrid, without Dolby Vision,
-  REMUX and disc images; releases with DTS/TrueHD audio go last with a mark (many TV browsers can't play them).
-  Series: season → episode → release (or straight to episodes from Lampa's own episode list).
-  Put your Real-Debrid API token into the plugin URL: `https://lightnzt.github.io/lampa-plugins/nzt.js?rd=YOUR_TOKEN`
-  (kept in Lampa storage after the first start). Without a token the button is not shown.
 
 ## check/
 
